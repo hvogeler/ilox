@@ -1,12 +1,16 @@
-use std::{fs::File, io::{self, Read, Write}, path::Path};
 use clap::Parser;
 use error::Error;
 use interpreter::run;
+use std::{
+    fs::File,
+    io::{self, Read, Write},
+    path::Path,
+};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
-mod interpreter;
 mod error;
+mod interpreter;
 
 #[derive(Parser, Debug, Clone)]
 #[command(version)]
@@ -18,17 +22,16 @@ fn main() {
     dotenv::dotenv().ok();
 
     tracing_subscriber::fmt()
-    .with_env_filter(EnvFilter::from_default_env())
-    .with_line_number(true)
-    .with_thread_ids(true)
-    .with_thread_names(true)
-    .with_target(true)
-    // .pretty()
-    .init();
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_line_number(true)
+        .with_thread_ids(true)
+        .with_thread_names(true)
+        .with_target(true)
+        .pretty()
+        .init();
 
     let args = Args::parse();
     if let Some(script) = args.script {
-        info!("Script: {}", script);
         let result = run_file(Path::new(&script));
         if let Err(e) = result {
             tracing::error!("{:?}", e);
@@ -50,13 +53,12 @@ fn run_file(file: &Path) -> Result<(), Error> {
 }
 
 fn repl() -> Result<(), Error> {
-
     let mut buf = String::new();
     prompt()?;
     let mut line_len = io::stdin().read_line(&mut buf)?;
     while line_len > 0 {
         let line = &buf;
-        if line.to_lowercase().starts_with("quit") || line.to_lowercase().starts_with("qq") { 
+        if line.to_lowercase().starts_with("quit") || line.to_lowercase().starts_with("qq") {
             break;
         }
         run(&line)?;

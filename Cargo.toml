@@ -6,5 +6,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.20", features = ["derive"] }
 dotenv = "0.15.0"
+strum = "0.26.3"
+strum_macros = "0.26.4"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
