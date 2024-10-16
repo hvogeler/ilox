@@ -1,5 +1,4 @@
 use scanner::Scanner;
-use tracing::info;
 use crate::error::Error;
 
 mod token_type;

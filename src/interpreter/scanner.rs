@@ -1,7 +1,5 @@
-use tracing::error;
 
 use crate::error::Errors;
-
 use super::{token::Token, token_type::TokenType};
 
 #[derive(Debug, Default)]
@@ -198,14 +196,14 @@ mod tests {
         let mut errors: Errors = Vec::new();
         let mut scanner = Scanner::new(r#"{
         (*./
-        >=)
+        >=&
         // some comment */.!=
         ==}!=
         "#);
         scanner.scan_tokens(&mut errors);
         println!("Tokens: {:?}", scanner.tokens);
-        assert_eq!(errors.len(), 0);
-        assert_eq!(scanner.tokens.len(), 11);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(scanner.tokens.len(), 10);
         assert_eq!(scanner.tokens.last().unwrap().token_type(), &TokenType::Eof);
         let token_types: Vec<&TokenType> = scanner.tokens.iter().map(|t| t.token_type()).collect();
         assert_eq!(
@@ -217,7 +215,7 @@ mod tests {
                 &TokenType::Dot,
                 &TokenType::Slash,
                 &TokenType::GreaterEqual,
-                &TokenType::RightParen,
+                // &TokenType::RightParen,
                 &TokenType::EqualEqual,
                 &TokenType::RightBrace,
                 &TokenType::BangEqual,
@@ -225,7 +223,7 @@ mod tests {
             ]
         );
         let line_numbers: Vec<usize> = scanner.tokens.iter().map(|t| t.line()).collect();
-        assert_eq!(line_numbers, vec![1, 2, 2, 2, 2, 3, 3, 5, 5, 5, 6]);
+        assert_eq!(line_numbers, vec![1, 2, 2, 2, 2, 3, 5, 5, 5, 6]);
     }
 
     #[test]

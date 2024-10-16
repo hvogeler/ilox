@@ -1,7 +1,5 @@
 use std::fmt;
-
 use super::token_type::TokenType;
-
 
 #[derive(Debug)]
 pub struct Token {
