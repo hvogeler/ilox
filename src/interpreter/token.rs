@@ -1,4 +1,4 @@
-use std::{fmt, path::Display};
+use std::fmt;
 
 use super::token_type::TokenType;
 
@@ -6,19 +6,22 @@ use super::token_type::TokenType;
 #[derive(Debug)]
 pub struct Token {
     token_type: TokenType,
-    literal: Option<Literal>,
     line: usize,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, literal: Option<Literal>, line: usize) -> Self {
-        Self { token_type, literal, line }
+    pub fn new(token_type: TokenType,line: usize) -> Self {
+        Self { token_type, line }
+    }
+
+    pub fn token_type(&self) -> &TokenType {
+        &self.token_type
     }
 }
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {:?}", self.token_type.to_string(), self.literal)
+        write!(f, "{:?}", self.token_type)
     }
 }
 

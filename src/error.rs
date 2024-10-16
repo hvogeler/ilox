@@ -1,10 +1,12 @@
 
+pub type Errors = Vec<Error>;
+
 #[derive(Debug)]
 pub enum Error {
     CodeError {
         line: usize,
         location: Option<String>,
-        messsage: String,
+        message: String,
     },
     CompilerError(String),
 }

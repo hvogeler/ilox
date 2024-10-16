@@ -7,8 +7,8 @@ mod token;
 mod scanner;
 
 
-pub fn run(lox_src: &str) -> Result<(), Error> {
+pub fn run(lox_src: &str, errors: &mut Vec<Error>) -> Result<(), Error> {
     let mut scanner = Scanner::new(lox_src);
-    let tokens = scanner.scan_tokens();
+    let tokens = scanner.scan_tokens(errors);
     Ok(())
 }
