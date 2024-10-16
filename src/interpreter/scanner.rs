@@ -79,6 +79,18 @@ impl Scanner {
                     };
                     self.add_token(token_type);
                 },
+                '/' => {
+                    if self.advance_if_match('/') {
+                        // this is a comment line. skip it.
+                        while self.peek() != '\n' && !self.is_at_end() {
+                            self.advance();
+                        }
+                    } else {
+                        self.add_token(TokenType::Slash);
+                    }
+                },
+                ' ' | '\r' | '\t' => (),
+                '\n' => self.line += 1,
                 _ => errors.push(crate::error::Error::CodeError {
                     line: self.line,
                     location: None,
@@ -115,6 +127,10 @@ impl Scanner {
 
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len()
+    }
+
+    fn peek(&self) -> char { 
+        self.get_current().unwrap_or('A')
     }
 
     fn get_current(&self) -> Option<char> {
@@ -175,6 +191,41 @@ mod tests {
                 &TokenType::Eof
             ]
         );
+    }
+
+    #[test]
+    fn test_scan_comment() {
+        let mut errors: Errors = Vec::new();
+        let mut scanner = Scanner::new(r#"{
+        (*./
+        >=)
+        // some comment */.!=
+        ==}!=
+        "#);
+        scanner.scan_tokens(&mut errors);
+        println!("Tokens: {:?}", scanner.tokens);
+        assert_eq!(errors.len(), 0);
+        assert_eq!(scanner.tokens.len(), 11);
+        assert_eq!(scanner.tokens.last().unwrap().token_type(), &TokenType::Eof);
+        let token_types: Vec<&TokenType> = scanner.tokens.iter().map(|t| t.token_type()).collect();
+        assert_eq!(
+            token_types,
+            vec![
+                &TokenType::LeftBrace,
+                &TokenType::LeftParen,
+                &TokenType::Star,
+                &TokenType::Dot,
+                &TokenType::Slash,
+                &TokenType::GreaterEqual,
+                &TokenType::RightParen,
+                &TokenType::EqualEqual,
+                &TokenType::RightBrace,
+                &TokenType::BangEqual,
+                &TokenType::Eof
+            ]
+        );
+        let line_numbers: Vec<usize> = scanner.tokens.iter().map(|t| t.line()).collect();
+        assert_eq!(line_numbers, vec![1, 2, 2, 2, 2, 3, 3, 5, 5, 5, 6]);
     }
 
     #[test]
