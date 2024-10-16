@@ -2,10 +2,7 @@ use tracing::error;
 
 use crate::error::Errors;
 
-use super::{
-    token::Token,
-    token_type::TokenType,
-};
+use super::{token::Token, token_type::TokenType};
 
 #[derive(Debug, Default)]
 pub struct Scanner {
@@ -39,7 +36,7 @@ impl Scanner {
     fn scan_token(&mut self, errors: &mut Errors) {
         let next_char = self.advance();
         match next_char {
-            Some(c) => match c {
+            Some(ref c) => match c {
                 '(' => self.add_token(TokenType::LeftParen),
                 ')' => self.add_token(TokenType::RightParen),
                 '{' => self.add_token(TokenType::LeftBrace),
@@ -50,19 +47,66 @@ impl Scanner {
                 '+' => self.add_token(TokenType::Plus),
                 ';' => self.add_token(TokenType::Semicolon),
                 '*' => self.add_token(TokenType::Star),
-                _ => errors.push(crate::error::Error::CodeError { line: self.line, location: None, message: format!("Invalid character: '{}'", c) }),
+                '!' => {
+                    let token_type = if self.advance_if_match('=') {
+                        TokenType::BangEqual
+                    } else {
+                        TokenType::Bang
+                    };
+                    self.add_token(token_type);
+                }
+                '=' => {
+                    let token_type = if self.advance_if_match('=') {
+                        TokenType::EqualEqual
+                    } else {
+                        TokenType::Equal
+                    };
+                    self.add_token(token_type);
+                }
+                '<' => {
+                    let token_type = if self.advance_if_match('=') {
+                        TokenType::LessEqual
+                    } else {
+                        TokenType::Less
+                    };
+                    self.add_token(token_type)
+                }
+                '>' => {
+                    let token_type = if self.advance_if_match('=') {
+                        TokenType::GreaterEqual
+                    } else {
+                        TokenType::Greater
+                    };
+                    self.add_token(token_type);
+                },
+                _ => errors.push(crate::error::Error::CodeError {
+                    line: self.line,
+                    location: None,
+                    message: format!("Invalid character: '{}'", c),
+                }),
             },
             None => return,
         }
     }
 
     fn advance(&mut self) -> Option<char> {
-        let c = self.source.get(self.current);
+        let c = self.get_current();
         if let Some(c) = c {
             self.current += 1;
-            return Some(*c);
+            return Some(c);
         }
         None
+    }
+
+    fn advance_if_match(&mut self, expected_char: char) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
+        if self.get_current().unwrap() != expected_char {
+            return false;
+        }
+        self.current += 1;
+        return true;
     }
 
     fn add_token(&mut self, token_type: TokenType) {
@@ -71,6 +115,10 @@ impl Scanner {
 
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len()
+    }
+
+    fn get_current(&self) -> Option<char> {
+        self.source.get(self.current).map(|c| c.to_owned())
     }
 }
 
@@ -103,12 +151,38 @@ mod tests {
     }
 
     #[test]
+    fn test_scan_operators() {
+        let mut errors: Errors = Vec::new();
+        let mut scanner = Scanner::new("{(*.>=)==}!=");
+        scanner.scan_tokens(&mut errors);
+        println!("Tokens: {:?}", scanner.tokens);
+        assert_eq!(errors.len(), 0);
+        assert_eq!(scanner.tokens.len(), 10);
+        assert_eq!(scanner.tokens.last().unwrap().token_type(), &TokenType::Eof);
+        let token_types: Vec<&TokenType> = scanner.tokens.iter().map(|t| t.token_type()).collect();
+        assert_eq!(
+            token_types,
+            vec![
+                &TokenType::LeftBrace,
+                &TokenType::LeftParen,
+                &TokenType::Star,
+                &TokenType::Dot,
+                &TokenType::GreaterEqual,
+                &TokenType::RightParen,
+                &TokenType::EqualEqual,
+                &TokenType::RightBrace,
+                &TokenType::BangEqual,
+                &TokenType::Eof
+            ]
+        );
+    }
+
+    #[test]
     fn test_scan_tokens_error() {
         let mut errors: Errors = Vec::new();
-        let mut scanner = Scanner::new("{(*.%)!}");
+        let mut scanner = Scanner::new("{(*.%)&}");
         scanner.scan_tokens(&mut errors);
         println!("Errors: {:?}", errors);
         assert_eq!(errors.len(), 2);
-
     }
 }
