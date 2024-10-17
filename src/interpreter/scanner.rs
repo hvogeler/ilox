@@ -1,3 +1,7 @@
+use std::str::FromStr;
+
+use strum::VariantNames;
+
 use super::{token::Token, token_type::TokenType};
 use crate::error::Errors;
 
@@ -72,7 +76,7 @@ impl Scanner {
                 }
                 '"' => self.handle_string(errors),
                 '0'..='9' => self.handle_number(),
-                'a'..'z' | 'A'..'Z' | '_' => self.handle_identifier(errors),
+                'a'..='z' | 'A'..='Z' | '_' => self.handle_identifier(),
                 ' ' | '\r' | '\t' => (),
                 '\n' => self.new_line(),
                 _ => errors.push(crate::error::Error::CodeError {
@@ -85,7 +89,7 @@ impl Scanner {
         }
     }
 
-    fn handle_identifier(&mut self, errors: &mut Errors) {
+    fn handle_identifier(&mut self) {
         while self.peek().is_alphanumeric() {
             self.advance();
         }
@@ -93,8 +97,11 @@ impl Scanner {
         let slce = &self.source.as_slice()[self.start..self.current];
         let string_value: String = slce.iter().collect();
 
-        
-        self.add_token(TokenType::Identifier(string_value));
+        if let Ok(token_type) = TokenType::from_str(&string_value) {
+            self.add_token(token_type);
+        } else {
+            self.add_token(TokenType::Identifier(string_value));
+        }
     }
 
     fn handle_number(&mut self) {
@@ -375,21 +382,24 @@ mod tests {
 
     #[test]
     fn test_scan_identifier() {
+        // println!("{} is reserved word? {:?}", "and", TokenType::from_str("println"));
+
         let mut errors: Errors = Vec::new();
         let mut scanner = Scanner::new(
-            r#"println("format String", value, sin(42));
-            cos(3.14 / 2);"#,
+            r#"print("format String", value, sin(42));
+            cos(3.14 / 2);
+            if a and b { true };"#,
         );
         scanner.scan_tokens(&mut errors);
         println!("Tokens: {:?}", scanner.tokens);
         assert_eq!(errors.len(), 0);
-        assert_eq!(scanner.tokens.len(), 20);
+        assert_eq!(scanner.tokens.len(), 28);
         assert_eq!(scanner.tokens.last().unwrap().token_type(), &TokenType::Eof);
         let token_types: Vec<&TokenType> = scanner.tokens.iter().map(|t| t.token_type()).collect();
         assert_eq!(
             token_types,
             vec![
-                &TokenType::Identifier("println".to_owned()),
+                &TokenType::Print,
                 &TokenType::LeftParen,
                 &TokenType::String("format String".to_owned()),
                 &TokenType::Comma,
@@ -407,6 +417,14 @@ mod tests {
                 &TokenType::Slash,
                 &TokenType::Number(2.),
                 &TokenType::RightParen,
+                &TokenType::Semicolon,
+                &TokenType::If,
+                &TokenType::Identifier("a".to_owned()),
+                &TokenType::And,
+                &TokenType::Identifier("b".to_owned()),
+                &TokenType::LeftBrace,
+                &TokenType::True,
+                &TokenType::RightBrace,
                 &TokenType::Semicolon,
                 &TokenType::Eof
             ]
