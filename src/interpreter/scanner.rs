@@ -1,6 +1,5 @@
-
-use crate::error::Errors;
 use super::{token::Token, token_type::TokenType};
+use crate::error::Errors;
 
 #[derive(Debug, Default)]
 pub struct Scanner {
@@ -50,7 +49,8 @@ impl Scanner {
                     self.add_token(token_type);
                 }
                 '=' => {
-                    let token_type = self.scan_operator('=', TokenType::Equal, TokenType::EqualEqual);
+                    let token_type =
+                        self.scan_operator('=', TokenType::Equal, TokenType::EqualEqual);
                     self.add_token(token_type);
                 }
                 '<' => {
@@ -58,9 +58,10 @@ impl Scanner {
                     self.add_token(token_type)
                 }
                 '>' => {
-                    let token_type = self.scan_operator('=', TokenType::Greater, TokenType::GreaterEqual);
+                    let token_type =
+                        self.scan_operator('=', TokenType::Greater, TokenType::GreaterEqual);
                     self.add_token(token_type);
-                },
+                }
                 '/' => {
                     if self.advance_if_match('/') {
                         // detect '//' and skip the comment line
@@ -68,8 +69,9 @@ impl Scanner {
                     } else {
                         self.add_token(TokenType::Slash);
                     }
-                },
+                }
                 '"' => self.handle_string(errors),
+                '0'..='9' => self.handle_number(errors),
                 ' ' | '\r' | '\t' => (),
                 '\n' => self.new_line(),
                 _ => errors.push(crate::error::Error::CodeError {
@@ -79,6 +81,32 @@ impl Scanner {
                 }),
             },
             None => return,
+        }
+    }
+
+    fn handle_number(&mut self, errors: &mut Errors) {
+        while Self::is_digit(self.peek()) {
+            self.advance();
+        }
+
+        if self.peek() == '.' && Self::is_digit(self.peek_next()) {
+            self.advance(); // consume the '.'
+            while Self::is_digit(self.peek()) {
+                self.advance();
+            }
+        }
+
+        let slce = &self.source.as_slice()[self.start..self.current];
+        let string_value: String = slce.iter().collect();
+        let value: f64 = string_value.parse().unwrap_or(0.0);
+        self.add_token(TokenType::Number(value));
+    
+    }
+
+    fn is_digit(c: char) -> bool {
+        match c {
+            '0'..='9' => true,
+            _ => false,
         }
     }
 
@@ -97,7 +125,7 @@ impl Scanner {
             });
         } else {
             self.advance(); // consume the terminating '"'
-            let slce = &self.source.as_slice()[self.start + 1..self.current -1];
+            let slce = &self.source.as_slice()[self.start + 1..self.current - 1];
             let string_value: String = slce.iter().collect();
             self.add_token(TokenType::String(string_value));
         }
@@ -115,7 +143,12 @@ impl Scanner {
 
     // Operators can be single character types like '+', '-' or '!'.
     // Operators can be dual types like '!=', '>='
-    fn scan_operator(&mut self, second_char: char, token_single: TokenType, token_dual: TokenType) -> TokenType {
+    fn scan_operator(
+        &mut self,
+        second_char: char,
+        token_single: TokenType,
+        token_dual: TokenType,
+    ) -> TokenType {
         if self.advance_if_match(second_char) {
             token_dual
         } else {
@@ -151,8 +184,12 @@ impl Scanner {
         self.current >= self.source.len()
     }
 
-    fn peek(&self) -> char { 
-        self.get_current().unwrap_or('A')
+    fn peek(&self) -> char {
+        self.get_current().unwrap_or('\0')
+    }
+
+    fn peek_next(&self) -> char {
+        *(self.source.get(self.current + 1).unwrap_or(&'\0'))
     }
 
     fn get_current(&self) -> Option<char> {
@@ -218,12 +255,14 @@ mod tests {
     #[test]
     fn test_scan_comment() {
         let mut errors: Errors = Vec::new();
-        let mut scanner = Scanner::new(r#"{
+        let mut scanner = Scanner::new(
+            r#"{
         (*./
         >=&
         // some comment */.!=
         ==}!=
-        "#);
+        "#,
+        );
         scanner.scan_tokens(&mut errors);
         println!("Tokens: {:?}", scanner.tokens);
         assert_eq!(errors.len(), 1);
@@ -253,10 +292,12 @@ mod tests {
     #[test]
     fn test_scan_string() {
         let mut errors: Errors = Vec::new();
-        let mut scanner = Scanner::new(r#"{(
+        let mut scanner = Scanner::new(
+            r#"{(
         "Doris"
         *"hello world".)}
-        "end of string""#);
+        "end of string""#,
+        );
         scanner.scan_tokens(&mut errors);
         println!("Tokens: {:?}", scanner.tokens);
         assert_eq!(errors.len(), 0);
@@ -275,6 +316,40 @@ mod tests {
                 &TokenType::RightParen,
                 &TokenType::RightBrace,
                 &TokenType::String("end of string".to_owned()),
+                &TokenType::Eof
+            ]
+        );
+    }
+
+    #[test]
+    fn test_scan_numbwe() {
+        let mut errors: Errors = Vec::new();
+        let mut scanner = Scanner::new(
+            r#"{(
+        "Doris"
+        *218.)}
+        4711 + 3.1415"#,
+        );
+        scanner.scan_tokens(&mut errors);
+        println!("Tokens: {:?}", scanner.tokens);
+        assert_eq!(errors.len(), 0);
+        assert_eq!(scanner.tokens.len(), 12);
+        assert_eq!(scanner.tokens.last().unwrap().token_type(), &TokenType::Eof);
+        let token_types: Vec<&TokenType> = scanner.tokens.iter().map(|t| t.token_type()).collect();
+        assert_eq!(
+            token_types,
+            vec![
+                &TokenType::LeftBrace,
+                &TokenType::LeftParen,
+                &TokenType::String("Doris".to_owned()),
+                &TokenType::Star,
+                &TokenType::Number(218.),
+                &TokenType::Dot,
+                &TokenType::RightParen,
+                &TokenType::RightBrace,
+                &TokenType::Number(4711.),
+                &TokenType::Plus,
+                &TokenType::Number(3.1415),
                 &TokenType::Eof
             ]
         );
