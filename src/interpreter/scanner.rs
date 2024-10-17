@@ -72,6 +72,7 @@ impl Scanner {
                 }
                 '"' => self.handle_string(errors),
                 '0'..='9' => self.handle_number(),
+                'a'..'z' | 'A'..'Z' | '_' => self.handle_identifier(errors),
                 ' ' | '\r' | '\t' => (),
                 '\n' => self.new_line(),
                 _ => errors.push(crate::error::Error::CodeError {
@@ -82,6 +83,18 @@ impl Scanner {
             },
             None => return,
         }
+    }
+
+    fn handle_identifier(&mut self, errors: &mut Errors) {
+        while self.peek().is_alphanumeric() {
+            self.advance();
+        }
+
+        let slce = &self.source.as_slice()[self.start..self.current];
+        let string_value: String = slce.iter().collect();
+
+        
+        self.add_token(TokenType::Identifier(string_value));
     }
 
     fn handle_number(&mut self) {
@@ -321,7 +334,7 @@ mod tests {
     }
 
     #[test]
-    fn test_scan_numbwe() {
+    fn test_scan_number() {
         let mut errors: Errors = Vec::new();
         let mut scanner = Scanner::new(
             r#"{(
@@ -355,6 +368,46 @@ mod tests {
                 &TokenType::Dot,
                 &TokenType::Dot,
                 &TokenType::Number(5.),
+                &TokenType::Eof
+            ]
+        );
+    }
+
+    #[test]
+    fn test_scan_identifier() {
+        let mut errors: Errors = Vec::new();
+        let mut scanner = Scanner::new(
+            r#"println("format String", value, sin(42));
+            cos(3.14 / 2);"#,
+        );
+        scanner.scan_tokens(&mut errors);
+        println!("Tokens: {:?}", scanner.tokens);
+        assert_eq!(errors.len(), 0);
+        assert_eq!(scanner.tokens.len(), 20);
+        assert_eq!(scanner.tokens.last().unwrap().token_type(), &TokenType::Eof);
+        let token_types: Vec<&TokenType> = scanner.tokens.iter().map(|t| t.token_type()).collect();
+        assert_eq!(
+            token_types,
+            vec![
+                &TokenType::Identifier("println".to_owned()),
+                &TokenType::LeftParen,
+                &TokenType::String("format String".to_owned()),
+                &TokenType::Comma,
+                &TokenType::Identifier("value".to_owned()),
+                &TokenType::Comma,
+                &TokenType::Identifier("sin".to_owned()),
+                &TokenType::LeftParen,
+                &TokenType::Number(42.),
+                &TokenType::RightParen,
+                &TokenType::RightParen,
+                &TokenType::Semicolon,
+                &TokenType::Identifier("cos".to_owned()),
+                &TokenType::LeftParen,
+                &TokenType::Number(3.14),
+                &TokenType::Slash,
+                &TokenType::Number(2.),
+                &TokenType::RightParen,
+                &TokenType::Semicolon,
                 &TokenType::Eof
             ]
         );
