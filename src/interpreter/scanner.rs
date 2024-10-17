@@ -46,49 +46,32 @@ impl Scanner {
                 ';' => self.add_token(TokenType::Semicolon),
                 '*' => self.add_token(TokenType::Star),
                 '!' => {
-                    let token_type = if self.advance_if_match('=') {
-                        TokenType::BangEqual
-                    } else {
-                        TokenType::Bang
-                    };
+                    let token_type = self.scan_operator('=', TokenType::Bang, TokenType::BangEqual);
                     self.add_token(token_type);
                 }
                 '=' => {
-                    let token_type = if self.advance_if_match('=') {
-                        TokenType::EqualEqual
-                    } else {
-                        TokenType::Equal
-                    };
+                    let token_type = self.scan_operator('=', TokenType::Equal, TokenType::EqualEqual);
                     self.add_token(token_type);
                 }
                 '<' => {
-                    let token_type = if self.advance_if_match('=') {
-                        TokenType::LessEqual
-                    } else {
-                        TokenType::Less
-                    };
+                    let token_type = self.scan_operator('=', TokenType::Less, TokenType::LessEqual);
                     self.add_token(token_type)
                 }
                 '>' => {
-                    let token_type = if self.advance_if_match('=') {
-                        TokenType::GreaterEqual
-                    } else {
-                        TokenType::Greater
-                    };
+                    let token_type = self.scan_operator('=', TokenType::Greater, TokenType::GreaterEqual);
                     self.add_token(token_type);
                 },
                 '/' => {
                     if self.advance_if_match('/') {
-                        // this is a comment line. skip it.
-                        while self.peek() != '\n' && !self.is_at_end() {
-                            self.advance();
-                        }
+                        // detect '//' and skip the comment line
+                        self.skip_rest_of_line();
                     } else {
                         self.add_token(TokenType::Slash);
                     }
                 },
+                '"' => self.handle_string(errors),
                 ' ' | '\r' | '\t' => (),
-                '\n' => self.line += 1,
+                '\n' => self.new_line(),
                 _ => errors.push(crate::error::Error::CodeError {
                     line: self.line,
                     location: None,
@@ -96,6 +79,47 @@ impl Scanner {
                 }),
             },
             None => return,
+        }
+    }
+
+    fn handle_string(&mut self, errors: &mut Errors) {
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' {
+                self.new_line();
+            }
+            self.advance();
+        }
+        if self.is_at_end() {
+            errors.push(crate::error::Error::CodeError {
+                line: self.line,
+                location: None,
+                message: format!("String not terminated"),
+            });
+        } else {
+            self.advance(); // consume the terminating '"'
+            let slce = &self.source.as_slice()[self.start + 1..self.current -1];
+            let string_value: String = slce.iter().collect();
+            self.add_token(TokenType::String(string_value));
+        }
+    }
+
+    fn new_line(&mut self) {
+        self.line += 1;
+    }
+
+    fn skip_rest_of_line(&mut self) {
+        while self.peek() != '\n' && !self.is_at_end() {
+            self.advance();
+        }
+    }
+
+    // Operators can be single character types like '+', '-' or '!'.
+    // Operators can be dual types like '!=', '>='
+    fn scan_operator(&mut self, second_char: char, token_single: TokenType, token_dual: TokenType) -> TokenType {
+        if self.advance_if_match(second_char) {
+            token_dual
+        } else {
+            token_single
         }
     }
 
@@ -224,6 +248,33 @@ mod tests {
         );
         let line_numbers: Vec<usize> = scanner.tokens.iter().map(|t| t.line()).collect();
         assert_eq!(line_numbers, vec![1, 2, 2, 2, 2, 3, 5, 5, 5, 6]);
+    }
+
+    #[test]
+    fn test_scan_string() {
+        let mut errors: Errors = Vec::new();
+        let mut scanner = Scanner::new(r#"{(
+        "Doris"
+        *.)}"#);
+        scanner.scan_tokens(&mut errors);
+        println!("Tokens: {:?}", scanner.tokens);
+        assert_eq!(errors.len(), 0);
+        assert_eq!(scanner.tokens.len(), 8);
+        assert_eq!(scanner.tokens.last().unwrap().token_type(), &TokenType::Eof);
+        let token_types: Vec<&TokenType> = scanner.tokens.iter().map(|t| t.token_type()).collect();
+        assert_eq!(
+            token_types,
+            vec![
+                &TokenType::LeftBrace,
+                &TokenType::LeftParen,
+                &TokenType::String("Doris".to_owned()),
+                &TokenType::Star,
+                &TokenType::Dot,
+                &TokenType::RightParen,
+                &TokenType::RightBrace,
+                &TokenType::Eof
+            ]
+        );
     }
 
     #[test]
