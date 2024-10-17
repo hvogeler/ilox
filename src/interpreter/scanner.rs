@@ -71,7 +71,7 @@ impl Scanner {
                     }
                 }
                 '"' => self.handle_string(errors),
-                '0'..='9' => self.handle_number(errors),
+                '0'..='9' => self.handle_number(),
                 ' ' | '\r' | '\t' => (),
                 '\n' => self.new_line(),
                 _ => errors.push(crate::error::Error::CodeError {
@@ -84,7 +84,7 @@ impl Scanner {
         }
     }
 
-    fn handle_number(&mut self, errors: &mut Errors) {
+    fn handle_number(&mut self) {
         while Self::is_digit(self.peek()) {
             self.advance();
         }
@@ -100,7 +100,6 @@ impl Scanner {
         let string_value: String = slce.iter().collect();
         let value: f64 = string_value.parse().unwrap_or(0.0);
         self.add_token(TokenType::Number(value));
-    
     }
 
     fn is_digit(c: char) -> bool {
@@ -328,12 +327,12 @@ mod tests {
             r#"{(
         "Doris"
         *218.)}
-        4711 + 3.1415"#,
+        4711 + 3.1415 3.1.4..5"#,
         );
         scanner.scan_tokens(&mut errors);
         println!("Tokens: {:?}", scanner.tokens);
         assert_eq!(errors.len(), 0);
-        assert_eq!(scanner.tokens.len(), 12);
+        assert_eq!(scanner.tokens.len(), 18);
         assert_eq!(scanner.tokens.last().unwrap().token_type(), &TokenType::Eof);
         let token_types: Vec<&TokenType> = scanner.tokens.iter().map(|t| t.token_type()).collect();
         assert_eq!(
@@ -350,6 +349,12 @@ mod tests {
                 &TokenType::Number(4711.),
                 &TokenType::Plus,
                 &TokenType::Number(3.1415),
+                &TokenType::Number(3.1),
+                &TokenType::Dot,
+                &TokenType::Number(4.),
+                &TokenType::Dot,
+                &TokenType::Dot,
+                &TokenType::Number(5.),
                 &TokenType::Eof
             ]
         );
