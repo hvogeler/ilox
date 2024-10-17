@@ -255,11 +255,12 @@ mod tests {
         let mut errors: Errors = Vec::new();
         let mut scanner = Scanner::new(r#"{(
         "Doris"
-        *.)}"#);
+        *"hello world".)}
+        "end of string""#);
         scanner.scan_tokens(&mut errors);
         println!("Tokens: {:?}", scanner.tokens);
         assert_eq!(errors.len(), 0);
-        assert_eq!(scanner.tokens.len(), 8);
+        assert_eq!(scanner.tokens.len(), 10);
         assert_eq!(scanner.tokens.last().unwrap().token_type(), &TokenType::Eof);
         let token_types: Vec<&TokenType> = scanner.tokens.iter().map(|t| t.token_type()).collect();
         assert_eq!(
@@ -269,9 +270,11 @@ mod tests {
                 &TokenType::LeftParen,
                 &TokenType::String("Doris".to_owned()),
                 &TokenType::Star,
+                &TokenType::String("hello world".to_owned()),
                 &TokenType::Dot,
                 &TokenType::RightParen,
                 &TokenType::RightBrace,
+                &TokenType::String("end of string".to_owned()),
                 &TokenType::Eof
             ]
         );
